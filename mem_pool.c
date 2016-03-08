@@ -98,6 +98,27 @@ alloc_status mem_init() {
     // ensure that it's called only once until mem_free
     // allocate the pool store with initial capacity
     // note: holds pointers only, other functions to allocate/deallocate
+	
+	//Check that mem_free has been called
+	if (pool_store_capacity == 0){
+		
+		pool_store_capacity = MEM_POOL_STORE_INIT_CAPACITY;
+		pool_+store = (pool_mgr_pt *)  malloc( (size_t) pool_store_capacity );
+		
+		//Check if malloc failed
+		if (pool_store == NULL){
+			pool_store_capacity = 0;
+			return ALLOC_FAIL;
+		}
+		
+		//If malloc success return OK
+		else return ALLOC_OK;
+	}
+	//If mem_free has not been called, return ALLOC_CALLED_AGAIN
+	else {
+		
+		return ALLOC_CALLED_AGAIN;
+	}
 
     return ALLOC_FAIL;
 }
@@ -107,6 +128,29 @@ alloc_status mem_free() {
     // make sure all pool managers have been deallocated
     // can free the pool store array
     // update static variables
+	
+	//Currently incomplete....
+	
+	//Check if pool store has been allocated
+	//If so, free pool store
+	 if(pool_store_capacity > 0){
+		 
+		 free ((void*) pool_store);
+		 //Check if free() has failed and pool store is not 
+		 //equal to NULL
+		 if (pool_store != NULL){
+			 
+			 return ALLOC_NOT_FREED;
+		 }
+		 //Otherwise set pool_store_capacity and pool_store_size
+		 //to 0
+		 else {
+			 pool_store_capacity = 0;
+			 pool_store_size = 0;
+			 return ALLOC_OK;
+		 }
+		 
+	 }
 
     return ALLOC_FAIL;
 }
@@ -128,6 +172,55 @@ pool_pt mem_pool_open(size_t size, alloc_policy policy) {
     //   initialize pool mgr
     //   link pool mgr to pool store
     // return the address of the mgr, cast to (pool_pt)
+	
+	//Check that the pool store is allocated
+	if (pool_store_capacity > 0){
+		//Check if the pool store needs to be expanded
+		if (pool_store_size >= (pool_store_capacity * MEM_POOL_STORE_FILL_FACTOR)){
+			//expand the pool store and check for error
+			if (_mem_resize_pool_store() == ALLOC_FAIL){
+				return ALLOC_FAIL;
+			}
+		}
+		
+		pool_store[pool_store_size] = (pool_mgr_pt) malloc(sizeof(pool_mgr));
+		
+		//check if the manager has been allocated
+		if (pool_store[pool_store_size] == NULL){
+			//Handle this
+		}
+		
+		//Allocate the memory pool
+		pool_store[pool_store_size]->pool.mem = (char *) malloc(sizeof(char) * size);
+		
+		//Check if the memory pool has been allocated correctly
+		if (pool_store[pool_store_size]->pool.mem == NULL){
+			//dealloc pool manager, exit with alloc_fail
+		}
+		
+		
+		///Initialize the memory pool ****Move this down to the bottom
+		// of the function
+		pool_store[pool_store_size]->pool.policy = policy; 
+		pool_store[pool_store_size]->pool.total_size = 0; //?
+		pool_store[pool_store_size]->pool.alloc_size = size;
+		pool_store[pool_store_size]->pool.num_allocs = 0;
+		pool_store[pool_store_size]->pool.num_gaps = 0;
+		
+		
+		//Allocate a new node heap
+		pool_store[pool_store_size]->node_heap = (node_pt) malloc(
+					sizeof(node_pt) * MEM_NODE_HEAP_INIT_CAPACITY);
+		
+		//Check that the node heap has been allocated
+		if (pool_store[pool_store_size]->node_heap == NULL){
+			//Dealloc pool and poolmanager
+		}
+		
+		//Initialize the gap index
+		pool_store[pool_store_size]->gap_ix = (gap_pt) malloc(sizeof(gap) * MEM_GAP_IX_INIT_CAPACITY);
+		
+	}
 
     return NULL;
 }
@@ -302,11 +395,8 @@ static alloc_status _mem_sort_gap_ix(pool_mgr_pt pool_mgr) {
     // the new entry is at the end, so "bubble it up"
     // loop from num_gaps - 1 until but not including 0:
     //    if the size of the current entry is less than the previous (u - 1)
-    //    or if the sizes are the same but the current entry points to a
-    //    node with a lower address of pool allocation address (mem)
     //       swap them (by copying) (remember to use a temporary variable)
 
     return ALLOC_FAIL;
 }
-
 
