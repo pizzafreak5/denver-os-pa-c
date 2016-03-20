@@ -602,8 +602,7 @@ static alloc_status _mem_remove_from_gap_ix(pool_mgr_pt pool_mgr,
 		}
 		else if (currentGap->alloc_record.size < node->alloc_record.size) //The array is sorted, so if the node is bigger than the currentGap, it doesn't exist
 		{
-
-			return ALLOC_FAIL;
+			return ALLOC_OK;
 		}
 		currentGap = currentGap->next;
 	}
