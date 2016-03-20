@@ -272,35 +272,33 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	}
 	else	//In the case it isn't an exact allocation
 	{
-		int i = mgr->used_nodes;
+		int i = 0;
 		while (mgr->node_heap[i].used == 1) {i++;}
 		node_pt newInsertNode = &mgr->node_heap[i];
 
 		newInsertNode->next = newAllocation->next;
+		newInsertNode->prev = newAllocation;
 		if (newAllocation->next != NULL) {newAllocation->next->prev = newInsertNode;}
 		newAllocation->next = newInsertNode;
-		newInsertNode->prev = newAllocation;
 
-		newInsertNode->allocated = 1;													//It is going to be allocated to a memory
+
+		_mem_remove_from_gap_ix(mgr, newAllocation->alloc_record.size, newAllocation);
+
+		newInsertNode->allocated = 0;													//It is going to be allocated to a memory
 		newInsertNode->used = 1;														//It is not going to be used yet
 		newInsertNode->alloc_record.size = newAllocation->alloc_record.size - size;		//The size should be the remaining gap while still satisfying the function call
-		//Assign *mem to point to the actual free memory, make sure it doesn't add to value at address but instead to address itself
-		newInsertNode->alloc_record.mem = newAllocation->alloc_record.mem;
+		newInsertNode->alloc_record.mem = newAllocation->alloc_record.mem + size;
 
-		newAllocation->alloc_record.size = newAllocation->alloc_record.size - size;
-		newAllocation->alloc_record.mem = newAllocation->alloc_record.mem + size;
-		newInsertNode = newAllocation;//Swap pointers for newInsert and newAlloc since newAlloc is already in the gap index
-		newAllocation = newAllocation->next;
-		//_mem_add_to_gap_ix(mgr, newInsertNode->alloc_record.size, newInsertNode);
 		newAllocation->alloc_record.size = size;
+		newAllocation->allocated = 1;
 
+		_mem_add_to_gap_ix(mgr, newInsertNode->alloc_record.size, newInsertNode);
 	}
 
 	//Remove the gap used
 
 	//_mem_sort_gap_ix(mgr);
 
-	newAllocation->used = 1;
 	//AT THIS POINT:
 	//newAllocation, the new allocation given to the user is removed from the gap index
 	//newInsertNode, the new gap created by allocating for newAllocation is in the gap index and is pointing to its domain of memory with the correct size of it as well
@@ -317,14 +315,10 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
 	// get mgr from pool by casting the pointer to (pool_mgr_pt)
 	pool_mgr_pt manager = (pool_mgr_pt) pool;
 	// get node from alloc by casting the pointer to (node_pt)
-	node_pt lenode = (node_pt) alloc;
 	// find the node in the node heap
 
-	node_pt cursor = lenode;
+	node_pt cursor = (node_pt) alloc;
 	// this is node-to-delete
-	// make sure it's found
-	// convert to gap node
-	cursor->used = 1;
 	cursor->allocated = 0;
 
 	// update metadata (num_allocs, alloc_size)
@@ -350,14 +344,14 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
      */
 
 	node_pt next = cursor->next;
-
-	if ((next != NULL) && (next->allocated == 0)){
+	if ((next != cursor) && (next != NULL) && (next->allocated == 0)){
+		printf("merged forward\n");
 		//check success
 		if (_mem_remove_from_gap_ix(manager, next->alloc_record.size, next) == ALLOC_FAIL){
-			//shits fucked
 			return ALLOC_FAIL;
 		}
 
+		printf("%d %d \n", next->alloc_record.size, cursor->alloc_record.size);
 		cursor->alloc_record.size = next->alloc_record.size + cursor->alloc_record.size;
 
 		if (cursor->next != NULL) {cursor->next->used = 0;}
@@ -398,16 +392,15 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
 	// add the resulting node to the gap index
 	// check success
 	node_pt prev = cursor->prev;
-	if ((prev != NULL) && (prev->allocated == 0)){
-		printf("merged forward\n");
+	if ((prev != cursor) && (prev != NULL) && (prev->allocated == 0)){
+		printf("merged backward\n");
 		if (_mem_remove_from_gap_ix(manager, prev->alloc_record.size, prev) == ALLOC_FAIL){
-			//shits fucked
 			return ALLOC_FAIL;
 		}
 
 		//check success
 
-
+		printf("%d %d \n", prev->alloc_record.size, cursor->alloc_record.size);
 		prev->alloc_record.size = prev->alloc_record.size + cursor->alloc_record.size;
 		cursor->used = 0;
 
@@ -435,7 +428,7 @@ void mem_inspect_pool(pool_pt pool,
     pool_mgr_pt pool_mgr = (pool_mgr_pt)pool;	// get the mgr from the pool
     pool_segment_pt segs = (pool_segment_pt)malloc(pool_mgr->used_nodes * sizeof(pool_segment_t));	// allocate the segments array with size == used_nodes
     assert(segs != NULL);	// check successful
-	
+
 	node_t node = pool_mgr->node_heap[0];
     for (size_t i = 0; i < pool_mgr->used_nodes; i++)	{	// loop through the node heap and the segments array
 		segs[i].size = node.alloc_record.size;	// for each node, write the size and allocated in the segment
@@ -581,7 +574,7 @@ static alloc_status _mem_remove_from_gap_ix(pool_mgr_pt pool_mgr,
 	{
 		if (pool_mgr->gap_ix->node != node)
 		{
-			return ALLOC_FAIL;
+			return ALLOC_OK;
 		}
 		else
 		{
