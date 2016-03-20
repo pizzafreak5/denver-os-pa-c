@@ -215,7 +215,7 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 		while (newAllocation != NULL && (found == 0))						//Try to find an empty node in the heap that isn't being used
 		{
 			length = length + 1;
-			if (newAllocation->allocated == 0)// && newAllocation->used == 0)	//If the node is not being used, select it
+			if (newAllocation->allocated == 0 && newAllocation->used == 1)	//If the node is not being used, select it
 			{
 				found = 1;
 			} else {
@@ -250,7 +250,7 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	// update metadata (num_allocs, alloc_size)
 	if (length == 1)	//If it is the first memory allocation, elsewise length > 1
 	{
-		pool->num_allocs = 2;
+		pool->num_allocs = 1;
 		pool->alloc_size = size;
 	} else {
 		pool->num_allocs = pool->num_allocs + 1;
@@ -435,7 +435,9 @@ void mem_inspect_pool(pool_pt pool,
     for (size_t i = 0; i < pool_mgr->used_nodes; i++)	{	// loop through the node heap and the segments array
 		segs[i].size = node.alloc_record.size;	// for each node, write the size and allocated in the segment
 		segs[i].allocated = node.allocated;
-		if (node.next != NULL) {node = *node.next;}
+		if (node.next != NULL) {
+			node = *node.next;
+		}
 	}
    	// "return" the values:
     
