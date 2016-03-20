@@ -147,7 +147,7 @@ pool_pt mem_pool_open(size_t size, alloc_policy policy) {
 	newMgr->pool.num_gaps = 1;
 	newMgr->node_heap[0].alloc_record.size = size;	//   initialize top node of node heap
 	newMgr->node_heap[0].alloc_record.mem = newMgr->pool.mem;
-	newMgr->node_heap[0].used = 0;
+	newMgr->node_heap[0].used = 1;
 	newMgr->node_heap[0].allocated = 0;
 	newMgr->node_heap[0].next = NULL;
 	newMgr->node_heap[0].prev = NULL;

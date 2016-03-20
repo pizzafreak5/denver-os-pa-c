@@ -7,7 +7,7 @@ set(SOURCE_FILES
     main.c mem_pool.c test_suite.h test_suite.c)
 
 add_library(libcmocka SHARED IMPORTED)
-set_property(TARGET libcmocka PROPERTY IMPORTED_LOCATION /home/garrett/Desktop/cmocka/build/src/libcmocka.so.0.3.1)
+set_property(TARGET libcmocka PROPERTY IMPORTED_LOCATION /home/garrett/cmocka-1.0.1/build/src/libcmocka.so.0.3.1)
 
 add_executable(denver_os_pa_c ${SOURCE_FILES})
 
