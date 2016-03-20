@@ -230,17 +230,11 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	// if BEST_FIT, then find the first sufficient node in the gap index
 	if (pool->policy == BEST_FIT)
 	{
-		int foundSmallest = 0;
-		while (newAllocation->next != NULL)								//Keep going through the index
+		for (int i = 0; i < mgr->pool.num_gaps; i++)
 		{
-			length = length + 1;
-			while (newAllocation->next->alloc_record.size >= size && foundSmallest == 0)		//The gaps are sorted by length so if the size is still bigger than needed we can keep looking
-			{															//Elsewise it will give us the best match when the condition of the while loop isn't met
-				newAllocation = newAllocation->next;
-			}
-			if (newAllocation->next->alloc_record.size < size)
+			if (mgr->gap_ix[i].size >= size)
 			{
-				foundSmallest = 1;
+				newAllocation = (&mgr->gap_ix[i])->node;
 			}
 		}
 	}
@@ -274,7 +268,6 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 		while (mgr->node_heap[i].used == 1) {i++;}
 		node_pt newInsertNode = &mgr->node_heap[i];	//The new gap
 
-		if (newAllocation->prev == newAllocation) {printf("cuntler");}
 		newInsertNode->next = newAllocation->next;
 		newInsertNode->prev = newAllocation;
 		if (newAllocation->next != NULL) {newAllocation->next->prev = newInsertNode;}
@@ -291,6 +284,8 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 		newAllocation->allocated = 1;
 
 		_mem_add_to_gap_ix(mgr, newInsertNode->alloc_record.size, newInsertNode);
+
+		mgr->used_nodes = mgr->used_nodes + 1; //update metadata (used_nodes)
 	}
 
 	//Remove the gap used
@@ -300,9 +295,6 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	//AT THIS POINT:
 	//newAllocation, the new allocation given to the user is removed from the gap index
 	//newInsertNode, the new gap created by allocating for newAllocation is in the gap index and is pointing to its domain of memory with the correct size of it as well
-
-	//update metadata (used_nodes)
-	mgr->used_nodes = mgr->used_nodes + 1;
 
 	// return allocation record by casting the node to (alloc_pt)
 	return &(newAllocation->alloc_record);
@@ -316,6 +308,7 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
 	// find the node in the node heap
 
 	node_pt cursor = (node_pt) alloc;
+	if (cursor->allocated == 0) {return ALLOC_NOT_FREED;}
 	// this is node-to-delete
 	cursor->allocated = 0;
 
