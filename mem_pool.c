@@ -274,13 +274,13 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	{
 		int i = 0;
 		while (mgr->node_heap[i].used == 1) {i++;}
-		node_pt newInsertNode = &mgr->node_heap[i];
+		node_pt newInsertNode = &mgr->node_heap[i];	//The new gap
 
+		if (newAllocation->prev == newAllocation) {printf("cuntler");}
 		newInsertNode->next = newAllocation->next;
 		newInsertNode->prev = newAllocation;
 		if (newAllocation->next != NULL) {newAllocation->next->prev = newInsertNode;}
 		newAllocation->next = newInsertNode;
-
 
 		_mem_remove_from_gap_ix(mgr, newAllocation->alloc_record.size, newAllocation);
 
@@ -344,7 +344,7 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
      */
 
 	node_pt next = cursor->next;
-	if ((next != cursor) && (next != NULL) && (next->allocated == 0)){
+	if ((next != NULL) && (next->allocated == 0)){
 		printf("merged forward\n");
 		//check success
 		if (_mem_remove_from_gap_ix(manager, next->alloc_record.size, next) == ALLOC_FAIL){
@@ -392,7 +392,7 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
 	// add the resulting node to the gap index
 	// check success
 	node_pt prev = cursor->prev;
-	if ((prev != cursor) && (prev != NULL) && (prev->allocated == 0)){
+	if ((prev != NULL) && (prev->allocated == 0)){
 		printf("merged backward\n");
 		if (_mem_remove_from_gap_ix(manager, prev->alloc_record.size, prev) == ALLOC_FAIL){
 			return ALLOC_FAIL;
@@ -506,6 +506,7 @@ static alloc_status _mem_add_to_gap_ix(pool_mgr_pt pool_mgr,
 	{
 		_mem_resize_gap_ix(pool_mgr);
 	}
+	pool_mgr->pool.num_gaps = pool_mgr->pool.num_gaps + 1;
 
 	// add the entry at the end
 	int currentIndex;
@@ -514,7 +515,7 @@ static alloc_status _mem_add_to_gap_ix(pool_mgr_pt pool_mgr,
 	if (length == 0) //If it is adding the first node
 	{
 		pool_mgr->gap_ix->node = node;
-		pool_mgr->gap_ix->node->prev = node;
+		pool_mgr->gap_ix->node->prev = NULL;
 		pool_mgr->gap_ix->node->next = NULL;
 		pool_mgr->gap_ix->size = 1;
 		pool_mgr->pool.num_gaps = 1;
@@ -532,7 +533,6 @@ static alloc_status _mem_add_to_gap_ix(pool_mgr_pt pool_mgr,
 		node->prev = currentGap;	//Link to the new node and for reversal link back
 	}
 	// update metadata (num_gaps)
-	pool_mgr->pool.num_gaps = pool_mgr->pool.num_gaps + 1;
 	pool_mgr->gap_ix->size = pool_mgr->gap_ix->size + 1;
 
 	// sort the gap index (call the function)
