@@ -265,8 +265,6 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	if (newAllocation->alloc_record.size == size)
 	{
 		//Change the size of the gap
-		mgr->gap_ix->size = mgr->gap_ix->size - 1;
-		pool->num_gaps = pool->num_gaps - 1;
 		newAllocation->allocated = 1;
 		_mem_remove_from_gap_ix(mgr, size, newAllocation);
 	}

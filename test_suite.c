@@ -105,7 +105,6 @@ static void check_metadata(pool_pt pool,
 #endif
 
     if (segs) free(segs);
-
     assert_non_null(pool);
     assert_non_null(pool->mem);
     assert_int_equal(pool->policy, policy);
@@ -113,7 +112,6 @@ static void check_metadata(pool_pt pool,
     assert_in_range(pool->alloc_size, alloc_size, alloc_size);
     assert_true(pool->num_allocs == num_allocs);
     assert_true(pool->num_gaps == num_gaps);
-
 #ifdef INSPECT_POOL
     printf("\n\n");
 #endif
@@ -301,7 +299,6 @@ static void test_pool_ff_metadata(void **state) {
                     {pool->total_size-100-1000-10000, 0}
             }; // three allocations: 100, 1000, 10000
     check_metadata(pool, FIRST_FIT, POOL_SIZE, 11100, 3, 1);
-
 
     // 5. deallocate 1000
     status = mem_del_alloc(pool, alloc1);
