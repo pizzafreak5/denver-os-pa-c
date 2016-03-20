@@ -246,7 +246,7 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	}
 
 	// update metadata (num_allocs, alloc_size)
-	if (length == 1)	//If it is the first memory allocation, elsewise length > 1
+	if (length == 0)	//If it is the first memory allocation, elsewise length > 1
 	{
 		pool->num_allocs = 1;
 		pool->alloc_size = size;
