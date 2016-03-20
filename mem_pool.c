@@ -127,12 +127,12 @@ pool_pt mem_pool_open(size_t size, alloc_policy policy) {
     assert(pool_store != NULL); // make sure there the pool store is allocated
     alloc_status status = _mem_resize_pool_store();	// expand the pool store, if necessary
 	if (status == ALLOC_FAIL) {return NULL;}
-	
+
     pool_mgr_pt newMgr = (pool_mgr_pt)malloc(sizeof(pool_mgr_t));	// allocate a new mem pool mgr
 	newMgr->pool.mem = (char*)malloc(size);	// allocate a new memory pool
     newMgr->node_heap = (node_pt)malloc(MEM_NODE_HEAP_INIT_CAPACITY * sizeof(node_t));	// allocate a new node heap
     newMgr->gap_ix = (gap_pt)malloc(MEM_GAP_IX_INIT_CAPACITY * sizeof(gap_t));	// allocate a new gap index
-	
+
     if (newMgr == NULL || newMgr->pool.mem == NULL || newMgr->node_heap == NULL || newMgr->gap_ix == NULL) {	// check success, on error deallocate mgr/pool/heap/gap  and return null
 		free(newMgr->pool.mem);
 		free(newMgr->node_heap);
@@ -140,7 +140,7 @@ pool_pt mem_pool_open(size_t size, alloc_policy policy) {
 		free(newMgr);
 		return NULL;
 	}
-	
+
     // assign all the pointers and update meta data:
 	newMgr->pool.policy = policy;
 	newMgr->pool.total_size = size;
@@ -156,7 +156,7 @@ pool_pt mem_pool_open(size_t size, alloc_policy policy) {
     newMgr->total_nodes = MEM_NODE_HEAP_INIT_CAPACITY;	//   initialize pool mgr
     newMgr->used_nodes = 1;
     newMgr->gap_ix_capacity = MEM_GAP_IX_INIT_CAPACITY;
-	
+
     pool_store[pool_store_size] = newMgr;//   link pool mgr to pool store
 	pool_store_size++;
 
@@ -215,7 +215,7 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 		while (newAllocation != NULL && (found == 0))						//Try to find an empty node in the heap that isn't being used
 		{
 			length = length + 1;
-			if (newAllocation->allocated == 0 && newAllocation->used == 1)	//If the node is not being used, select it
+			if (newAllocation->allocated == 0 && newAllocation->used == 1 && newAllocation->alloc_record.size >= size)	//If the node is not being used, select it
 			{
 				found = 1;
 			} else {
@@ -336,13 +336,11 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
 
 	node_pt next = cursor->next;
 	if ((next != NULL) && (next->allocated == 0)){
-		printf("merged forward\n");
 		//check success
 		if (_mem_remove_from_gap_ix(manager, next->alloc_record.size, next) == ALLOC_FAIL){
 			return ALLOC_FAIL;
 		}
 
-		printf("%d %d \n", next->alloc_record.size, cursor->alloc_record.size);
 		cursor->alloc_record.size = next->alloc_record.size + cursor->alloc_record.size;
 
 		if (cursor->next != NULL) {cursor->next->used = 0;}
@@ -384,14 +382,12 @@ alloc_status mem_del_alloc(pool_pt pool, alloc_pt alloc) {
 	// check success
 	node_pt prev = cursor->prev;
 	if ((prev != NULL) && (prev->allocated == 0)){
-		printf("merged backward\n");
 		if (_mem_remove_from_gap_ix(manager, prev->alloc_record.size, prev) == ALLOC_FAIL){
 			return ALLOC_FAIL;
 		}
 
 		//check success
 
-		printf("%d %d \n", prev->alloc_record.size, cursor->alloc_record.size);
 		prev->alloc_record.size = prev->alloc_record.size + cursor->alloc_record.size;
 		cursor->used = 0;
 
@@ -429,7 +425,7 @@ void mem_inspect_pool(pool_pt pool,
 		}
 	}
    	// "return" the values:
-    
+
     *segments = segs;
     *num_segments = pool_mgr->used_nodes;
 }
@@ -534,22 +530,21 @@ static alloc_status _mem_sort_gap_ix(pool_mgr_pt pool_mgr) {
 	//    if the size of the current entry is less than the previous (u - 1)
 	//       swap them (by copying) (remember to use a temporary variable)
 	int length = pool_mgr->pool.num_gaps;
+
 	//In the case that there is only 1 node
 	if (length < 2)
 	{
 		return ALLOC_OK;
 	}
-	for (int currentIndex = length; currentIndex < 1;currentIndex--) {
+	for (int currentIndex = length; currentIndex >= 1;currentIndex--) {
 		//Swap condition
-		if (pool_mgr->gap_ix[currentIndex--].size < pool_mgr->gap_ix[currentIndex].size)
+		if (pool_mgr->gap_ix[currentIndex-1].size < pool_mgr->gap_ix[currentIndex].size
+				|| (pool_mgr->gap_ix[currentIndex-1].size == pool_mgr->gap_ix[currentIndex].size
+				&& pool_mgr->gap_ix[currentIndex-1].node->alloc_record.mem < pool_mgr->gap_ix[currentIndex].node->alloc_record.mem))
 		{
 			gap_t temp = pool_mgr->gap_ix[currentIndex];
-			pool_mgr->gap_ix[currentIndex] = pool_mgr->gap_ix[currentIndex--];
-			pool_mgr->gap_ix[currentIndex--] = temp;
-		}
-		else
-		{
-			return ALLOC_OK;
+			pool_mgr->gap_ix[currentIndex] = pool_mgr->gap_ix[currentIndex-1];
+			pool_mgr->gap_ix[currentIndex-1] = temp;
 		}
 	}
 	return ALLOC_OK;

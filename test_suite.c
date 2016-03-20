@@ -78,11 +78,11 @@ static void check_pool(pool_pt pool, const pool_segment_pt exp) {
 }
 
 static void check_metadata(pool_pt pool,
-                    alloc_policy policy,
-                    size_t total_size,
-                    size_t alloc_size,
-                    unsigned num_allocs,
-                    unsigned num_gaps) {
+                           alloc_policy policy,
+                           size_t total_size,
+                           size_t alloc_size,
+                           unsigned num_allocs,
+                           unsigned num_gaps) {
     pool_segment_pt segs = NULL;
     unsigned size = 0;
 
@@ -169,7 +169,7 @@ static void test_pool_smoketest(void **state) {
         assert_int_equal(status, ALLOC_OK);
 
         INFO("Allocating pool of %lu bytes with policy %s\n",
-               (long) pool_size, (POOL_POLICY == FIRST_FIT) ? "FIRST_FIT" : "BEST_FIT");
+             (long) pool_size, (POOL_POLICY == FIRST_FIT) ? "FIRST_FIT" : "BEST_FIT");
         pool = mem_pool_open(pool_size, POOL_POLICY);
         assert_non_null(pool);
         assert_non_null(pool->mem);
@@ -1679,7 +1679,7 @@ static void test_pool_scenario12(void **state) {
     free(allocs);
     assert_int_equal(mem_del_alloc(pool, alloc0), ALLOC_OK);
 
-    
+
     check_pool(pool, exp0);
 }
 
@@ -2391,8 +2391,8 @@ void test_pool_stresstest(void **state) {
             if (allocations[pix][aix]) {
                 // delete allocation
                 assert_int_equal(
-                    mem_del_alloc(pools[pix], allocations[pix][aix]),
-                    ALLOC_OK);
+                        mem_del_alloc(pools[pix], allocations[pix][aix]),
+                        ALLOC_OK);
             }
         }
         // close pool
