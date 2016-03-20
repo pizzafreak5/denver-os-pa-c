@@ -500,120 +500,40 @@ static alloc_status _mem_resize_gap_ix(pool_mgr_pt pool_mgr) {
 static alloc_status _mem_add_to_gap_ix(pool_mgr_pt pool_mgr,
 									   size_t size,
 									   node_pt node) {
-
 	// expand the gap index, if necessary (call the function)
-	if (pool_mgr->pool.num_gaps >= pool_mgr->gap_ix_capacity)
-	{
-		_mem_resize_gap_ix(pool_mgr);
-	}
-	pool_mgr->pool.num_gaps = pool_mgr->pool.num_gaps + 1;
+	_mem_resize_gap_ix(pool_mgr);
 
 	// add the entry at the end
-	int currentIndex;
-	int length = pool_mgr->pool.num_gaps;
-	node_pt currentGap = pool_mgr->gap_ix->node;
-	if (length == 0) //If it is adding the first node
-	{
-		pool_mgr->gap_ix->node = node;
-		pool_mgr->gap_ix->node->prev = NULL;
-		pool_mgr->gap_ix->node->next = NULL;
-		pool_mgr->gap_ix->size = 1;
-		pool_mgr->pool.num_gaps = 1;
-		return ALLOC_OK;
-	} else {
-		//go to the end of the gap
-		for (currentIndex = 0; currentIndex < length; currentIndex = currentIndex + 1)
-		{
-			if (currentGap->next != NULL) {
-				currentGap = currentGap->next;
-			}
-		}
-		//At this point currentGap represents the last node in the gap index
-		currentGap->next = node;
-		node->prev = currentGap;	//Link to the new node and for reversal link back
-	}
+	pool_mgr->gap_ix[pool_mgr->pool.num_gaps].node = node;
+	pool_mgr->gap_ix[pool_mgr->pool.num_gaps].size = size;
 	// update metadata (num_gaps)
-	pool_mgr->gap_ix->size = pool_mgr->gap_ix->size + 1;
-
+	pool_mgr->pool.num_gaps++;
 	// sort the gap index (call the function)
-	if (_mem_sort_gap_ix(pool_mgr) == ALLOC_OK)
-	{
-
-	} else {
-		return ALLOC_FAIL; //Didn't sort
-	}
-
-
 	// check success
-	currentGap = pool_mgr->gap_ix->node;
-	for (currentIndex = 0; currentIndex <= length; currentIndex = currentIndex + 1)
-	{
-		if (currentGap != NULL)
-		{
-			currentGap = currentGap->next;
-		} else {
-			return ALLOC_FAIL;
-		}
+	if (_mem_sort_gap_ix(pool_mgr) == ALLOC_FAIL){
+		//the world hs ended
+		return ALLOC_FAIL;
 	}
+
 	return ALLOC_OK;
 }
 //G
 static alloc_status _mem_remove_from_gap_ix(pool_mgr_pt pool_mgr,
 											size_t size,
 											node_pt node) {
-	// find the position of the node in the gap index
-	size_t length = pool_mgr->gap_ix->size;
-	int currentIndex;
-
-	//Base cases
-	if (length == 0)
-	{
-		return ALLOC_FAIL;
-	}
-	else if (length == 1)
-	{
-		if (pool_mgr->gap_ix->node != node)
-		{
-			return ALLOC_OK;
-		}
-		else
-		{
-			pool_mgr->gap_ix->node = NULL;
-			pool_mgr->gap_ix->size = 0;
-			pool_mgr->pool.num_gaps = 0;
-			return ALLOC_OK;
-		}
+	size_t pos;
+	for (pos = 0; pos < pool_mgr->pool.num_gaps; pos++)	{ // find the position of the node in the gap index
+		if (pool_mgr->gap_ix[pos].node == node) {break;}
 	}
 
-	node_pt currentGap = pool_mgr->gap_ix->node;
-
-	for (currentIndex = 0; currentIndex < length; currentIndex= currentIndex + 1)
-	{
-		if (currentGap->alloc_record.size == node->alloc_record.size)
-		{
-			//Remove the link to node.
-			if (currentGap->prev != NULL) {currentGap->prev->next = currentGap->next;}
-			if (currentGap->next != NULL) {currentGap->next->prev = currentGap->prev;}
-
-			//Update lengths
-			pool_mgr->gap_ix->size = pool_mgr->gap_ix->size - 1;
-			pool_mgr->pool.num_gaps = pool_mgr->pool.num_gaps - 1;
-			return ALLOC_OK;
-		}
-		else if (currentGap->alloc_record.size < node->alloc_record.size) //The array is sorted, so if the node is bigger than the currentGap, it doesn't exist
-		{
-
-			return ALLOC_FAIL;
-		}
-		currentGap = currentGap->next;
+	for (pos; pos < pool_mgr->gap_ix->size; pos++) {// loop from there to the end of the array:
+		pool_mgr->gap_ix[pos] = pool_mgr->gap_ix[pos+1];	//    pull the entries (i.e. copy over) one position up
 	}
-	free(currentGap);
+	pool_mgr->pool.num_gaps = pool_mgr->pool.num_gaps - 1;	// update metadata (num_gaps)
+	pool_mgr->gap_ix[pool_mgr->pool.num_gaps].size = 0;// zero out the element at position num_gaps!
+	pool_mgr->gap_ix[pool_mgr->pool.num_gaps].node = NULL;
+
 	return ALLOC_FAIL;
-	// loop from there to the end of the array:
-	//    pull the entries (i.e. copy over) one position up
-	//    this effectively deletes the chosen node
-	// update metadata (num_gaps)
-	// zero out the element at position num_gaps!
 }
 //G
 // note: only called by _mem_add_to_gap_ix, which appends a single entry
@@ -628,26 +548,13 @@ static alloc_status _mem_sort_gap_ix(pool_mgr_pt pool_mgr) {
 	{
 		return ALLOC_OK;
 	}
-
-	int currentIndex =  length;
-	node_pt newestAddition = pool_mgr->gap_ix->node;
-	while (newestAddition->next != NULL) {newestAddition = newestAddition->next;}	//get the last node
-	node_pt neighbor = newestAddition-> prev;					//Get the 2nd to last node in the gap index
-	node_pt bufferNode = newestAddition->prev;					//Buffer node for swapping
-	while (currentIndex > 0)
-	{
-		currentIndex = currentIndex - 1;
-		//The value before the last node is smaller, so swap
-		if (neighbor->alloc_record.size < newestAddition->alloc_record.size)
+	for (int currentIndex = length; currentIndex < 1;currentIndex--) {
+		//Swap condition
+		if (pool_mgr->gap_ix[currentIndex--].size < pool_mgr->gap_ix[currentIndex].size)
 		{
-			//Swap
-			bufferNode = neighbor;
-			neighbor->prev = newestAddition;
-			neighbor->next = newestAddition->next;
-			newestAddition->next = neighbor;
-			newestAddition->prev = bufferNode->prev;
-			//Prepare for next iteration
-			neighbor = newestAddition->prev;
+			gap_t temp = pool_mgr->gap_ix[currentIndex];
+			pool_mgr->gap_ix[currentIndex] = pool_mgr->gap_ix[currentIndex--];
+			pool_mgr->gap_ix[currentIndex--] = temp;
 		}
 		else
 		{
