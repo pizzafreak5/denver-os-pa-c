@@ -526,14 +526,14 @@ static alloc_status _mem_remove_from_gap_ix(pool_mgr_pt pool_mgr,
 		if (pool_mgr->gap_ix[pos].node == node) {break;}
 	}
 
-	for (pos; pos < pool_mgr->gap_ix->size; pos++) {// loop from there to the end of the array:
+	for (pos; pos < pool_mgr->pool.num_gaps; pos++) {// loop from there to the end of the array:
 		pool_mgr->gap_ix[pos] = pool_mgr->gap_ix[pos+1];	//    pull the entries (i.e. copy over) one position up
 	}
 	pool_mgr->pool.num_gaps = pool_mgr->pool.num_gaps - 1;	// update metadata (num_gaps)
 	pool_mgr->gap_ix[pool_mgr->pool.num_gaps].size = 0;// zero out the element at position num_gaps!
 	pool_mgr->gap_ix[pool_mgr->pool.num_gaps].node = NULL;
 
-	return ALLOC_FAIL;
+	return ALLOC_OK;
 }
 //G
 // note: only called by _mem_add_to_gap_ix, which appends a single entry
