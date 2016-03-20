@@ -147,7 +147,7 @@ pool_pt mem_pool_open(size_t size, alloc_policy policy) {
 	newMgr->pool.num_gaps = 1;
 	newMgr->node_heap[0].alloc_record.size = size;	//   initialize top node of node heap
 	newMgr->node_heap[0].alloc_record.mem = newMgr->pool.mem;
-	newMgr->node_heap[0].used = 0;
+	newMgr->node_heap[0].used = 1;
 	newMgr->node_heap[0].allocated = 0;
 	newMgr->node_heap[0].next = NULL;
 	newMgr->node_heap[0].prev = NULL;
@@ -230,13 +230,17 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	// if BEST_FIT, then find the first sufficient node in the gap index
 	if (pool->policy == BEST_FIT)
 	{
-		newAllocation = mgr->gap_ix->node;								//Start looking at the start of the gap index
+		int foundSmallest = 0;
 		while (newAllocation->next != NULL)								//Keep going through the index
 		{
 			length = length + 1;
-			while (newAllocation->next->alloc_record.size >= size)		//The gaps are sorted by length so if the size is still bigger than needed we can keep looking
+			while (newAllocation->next->alloc_record.size >= size && foundSmallest == 0)		//The gaps are sorted by length so if the size is still bigger than needed we can keep looking
 			{															//Elsewise it will give us the best match when the condition of the while loop isn't met
 				newAllocation = newAllocation->next;
+			}
+			if (newAllocation->next->alloc_record.size < size)
+			{
+				foundSmallest = 1;
 			}
 		}
 	}
@@ -268,8 +272,9 @@ alloc_pt mem_new_alloc(pool_pt pool, size_t size) {
 	}
 	else	//In the case it isn't an exact allocation
 	{
-
-		node_pt newInsertNode = &mgr->node_heap[mgr->used_nodes+1];
+		int i = mgr->used_nodes;
+		while (mgr->node_heap[i].used == 1) {i++;}
+		node_pt newInsertNode = &mgr->node_heap[i];
 
 		newInsertNode->next = newAllocation->next;
 		if (newAllocation->next != NULL) {newAllocation->next->prev = newInsertNode;}
